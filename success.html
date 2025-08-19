@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Success Page</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    overflow: hidden;
+  }
+
+  .container {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 50px 30px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    animation: fadeIn 1s ease forwards;
+  }
+
+  .container h1 {
+    font-size: 2.5rem;
+    color: #28a745;
+    margin-bottom: 20px;
+    animation: popIn 0.8s ease forwards;
+  }
+
+  .container p {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 30px;
+  }
+
+  .btn {
+    padding: 12px 25px;
+    font-size: 1rem;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
+  }
+
+  .btn:hover {
+    transform: scale(1.1);
+    background-color: #0056b3;
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(-50px);}
+    100% { opacity: 1; transform: translateY(0);}
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0;}
+    100% { transform: scale(1); opacity: 1;}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>✔ සාර්ථකයි!</h1>
+  <p>ඔබේ ක්‍රියාව සාර්ථකව නිමාවට පත් විය.</p>
+  <button class="btn" onclick="goBack()">පසු පිටුවට යන්න</button>
+</div>
+
+<script>
+  function goBack() {
+    window.history.back();
+  }
+</script>
+
+</body>
+</html>

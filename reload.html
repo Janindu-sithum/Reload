@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reload — Reload Page</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+  :root{--bg:#0b1020;--text:#e8eaff;--muted:#6b72a1;--accent-2:#7af0c6}
+  *{box-sizing:border-box} body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto;background:radial-gradient(1200px 600px at 20% -10%,#1a2250 0%,#0b1020 60%);color:var(--text);min-height:100svh;display:flex;flex-direction:column}
+  .wrap{max-width:1000px;margin:28px auto;padding:16px}
+  .panel{background:linear-gradient(180deg,rgba(18,23,53,.95),rgba(18,23,53,.75));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .display{background:#0d1330;border-radius:14px;padding:12px}
+  .phone{font:600 22px/1.2 ui-monospace,Menlo,Consolas;letter-spacing:2px}
+  .muted{color:var(--muted);font-size:13px}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .btn{padding:14px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);cursor:pointer;font-weight:700}
+  .btn.accent{background:linear-gradient(135deg,rgba(107,155,255,.25),rgba(122,240,198,.2));border-color:rgba(255,255,255,.18)}
+  .btn.danger{background:linear-gradient(135deg,rgba(255,107,136,.2),rgba(255,107,136,.12))}
+  .input{width:100%;padding:12px;border-radius:12px;background:#0d1330;border:1px solid rgba(255,255,255,.08);color:var(--text);margin-top:8px}
+  .row{display:flex;gap:10px;margin-top:12px}
+  .note{font-size:13px;color:#b8bdf5;margin-top:10px}
+  .footer{font-size:12px;text-align:center;color:#8891cb;margin-top:18px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h2>Reload — Enter Number</h2>
+      <div class="display">
+        <div class="muted">Enter 10-digit number</div>
+        <div id="phoneView" class="phone">_ _ _  _ _ _  _ _ _ _</div>
+      </div>
+
+      <input id="amount" class="input" type="number" min="1" placeholder="Amount (e.g., 100)">
+
+      <div class="keypad" id="keypad"></div>
+
+      <div class="row">
+        <div class="btn danger" id="btnClear"><i class="ri-delete-bin-6-line"></i> Clear</div>
+        <div class="btn" id="btnBack"><i class="ri-arrow-go-back-line"></i> Back</div>
+        <div class="btn accent" id="btnSend"><i class="ri-send-plane-2-line"></i> Send</div>
+      </div>
+
+      <div class="note">Data saves to Firebase and locally. After send you will be taken to Loads page.</div>
+    </div>
+    <div class="footer">Reload Page — <a href="loads.html" style="color:var(--accent-2)">Open Loads</a></div>
+  </div>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyAOQGpYhDvwHlrAwgddIQvnaMz3lKYZeRs",
+  authDomain: "bookwave-f77fd.firebaseapp.com",
+  projectId: "bookwave-f77fd",
+  storageBucket: "bookwave-f77fd.firebasestorage.app",
+  messagingSenderId: "958318548989",
+  appId: "1:958318548989:web:ac0d194139f63754196b94",
+  measurementId: "G-Q7RZ79BE4B"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const ownerKey = "reload_owner_id";
+  const localKey = "reload_items";
+  const deviceOwnerId = getOrCreateOwnerId();
+
+  function getOrCreateOwnerId(){
+    let id = localStorage.getItem(ownerKey);
+    if(!id){ id = "dev_"+crypto.randomUUID(); localStorage.setItem(ownerKey,id); }
+    return id;
+  }
+
+  const phoneView = document.getElementById("phoneView");
+  const keypad = document.getElementById("keypad");
+  const btnClear = document.getElementById("btnClear");
+  const btnBack = document.getElementById("btnBack");
+  const btnSend = document.getElementById("btnSend");
+  const amountEl = document.getElementById("amount");
+
+  let phoneDigits = [];
+  let mode = "phone"; // "phone" or "amount"
+
+  function renderPhone(){
+    const d = [...phoneDigits];
+    while(d.length<10) d.push("_");
+    phoneView.textContent = `${d[0]} ${d[1]} ${d[2]}  ${d[3]} ${d[4]} ${d[5]}  ${d[6]} ${d[7]} ${d[8]} ${d[9]}`;
+  }
+
+  function makeKey(label){
+    const el = document.createElement("div"); 
+    el.className="btn"; 
+    el.textContent=label; 
+    return el;
+  }
+
+  function buildKeypad(){
+    keypad.innerHTML="";
+    for(let i=1;i<=9;i++){
+      const b = makeKey(String(i)); 
+      b.addEventListener("click", ()=> pushDigit(i)); 
+      keypad.appendChild(b);
+    }
+    const star = makeKey("*"); 
+    const zero = makeKey("0"); 
+    zero.addEventListener("click", ()=> pushDigit(0));
+    const hash = makeKey("#");
+    keypad.append(star, zero, hash);
+  }
+
+  function pushDigit(d){
+    if(mode==="phone"){
+      if(phoneDigits.length<10){
+        phoneDigits.push(String(d)); 
+        renderPhone();
+        if(phoneDigits.length===10){ 
+          mode="amount"; 
+          amountEl.focus(); 
+        }
+      }
+    }else if(mode==="amount"){
+      amountEl.value = (amountEl.value || "") + d;
+    }
+  }
+
+  function clearDigits(){
+    if(mode==="phone"){ 
+      phoneDigits=[]; 
+      renderPhone(); 
+    }else{ 
+      amountEl.value=""; 
+    }
+  }
+
+  function backspace(){
+    if(mode==="phone"){ 
+      phoneDigits.pop(); 
+      renderPhone(); 
+    }else{ 
+      amountEl.value = amountEl.value.slice(0,-1); 
+    }
+  }
+
+  btnClear.addEventListener("click", clearDigits);
+  btnBack.addEventListener("click", backspace);
+
+  btnSend.addEventListener("click", async ()=>{
+    const phone = phoneDigits.join("");
+    const amount = Number(amountEl.value || 0);
+
+    if(phone.length!==10){ alert("10-digit number එක ඇතුලත් කරන්න."); return; }
+    if(!Number.isFinite(amount) || amount<=0){ alert("Amount එක ඇතුලත් කරන්න."); return; }
+
+    const item = { ownerId: deviceOwnerId, phone, amount, createdAt: new Date().toISOString() };
+
+    const arr = JSON.parse(localStorage.getItem(localKey) || "[]");
+    item._id = "loc_"+crypto.randomUUID(); 
+    arr.unshift(item); 
+    localStorage.setItem(localKey, JSON.stringify(arr));
+
+    try{
+      await addDoc(collection(db,"reloads"), { ownerId: deviceOwnerId, phone, amount, createdAt: serverTimestamp() });
+    }catch(e){
+      console.warn("Cloud save failed:", e);
+    }
+
+    window.location.href = "success.html";
+  });
+
+  buildKeypad(); 
+  renderPhone();
+</script>
+
+</body>
+</html>
